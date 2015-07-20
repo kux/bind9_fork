@@ -1,0 +1,777 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ - Copyright (C) 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
+ -
+ - Permission to use, copy, modify, and/or distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<sect1 xmlns:xi="http://www.w3.org/2001/XInclude">
+  <xi:include href="noteversion.xml"/>
+  <sect2 id="relnotes_intro">
+    <title>Introduction</title>
+    <para>
+      This document summarizes changes since the last production release
+      of BIND on the corresponding major release branch.
+    </para>
+  </sect2>
+  <sect2 id="relnotes_download">
+    <title>Download</title>
+    <para>
+      The latest versions of BIND 9 software can always be found at
+      <ulink url="http://www.isc.org/downloads/"
+	>http://www.isc.org/downloads/</ulink>.
+      There you will find additional information about each release,
+      source code, and pre-compiled versions for Microsoft Windows
+      operating systems.
+    </para>
+  </sect2>
+  <sect2 id="relnotes_security">
+    <title>Security Fixes</title>
+    <itemizedlist>
+      <listitem>
+	<para>
+	  On servers configured to perform DNSSEC validation, an
+	  assertion failure could be triggered on answers from
+	  a specially configured server.
+	</para>
+        <para>
+	  This flaw was discovered by Breno Silveira Soares, and is
+	  disclosed in CVE-2015-4620. [RT #39795]
+        </para>
+      </listitem> 
+      <listitem>
+	<para>
+	  On servers configured to perform DNSSEC validation using
+	  managed trust anchors (i.e., keys configured explicitly
+	  via <command>managed-keys</command>, or implicitly 
+	  via <command>dnssec-validation auto;</command> or
+	  <command>dnssec-lookaside auto;</command>), revoking
+	  a trust anchor and sending a new untrusted replacement
+	  could cause <command>named</command> to crash with an
+	  assertion failure. This could occur in the event of a
+	  botched key rollover, or potentially as a result of a
+	  deliberate attack if the attacker was in position to
+	  monitor the victim's DNS traffic.
+	</para>
+	<para>
+	  This flaw was discovered by Jan-Piet Mens, and is
+	  disclosed in CVE-2015-1349. [RT #38344]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  A flaw in delegation handling could be exploited to put
+	  <command>named</command> into an infinite loop, in which
+	  each lookup of a name server triggered additional lookups
+	  of more name servers.  This has been addressed by placing
+	  limits on the number of levels of recursion
+	  <command>named</command> will allow (default 7), and
+	  on the number of queries that it will send before
+	  terminating a recursive query (default 50).
+	</para>
+	<para>
+	  The recursion depth limit is configured via the
+	  <option>max-recursion-depth</option> option, and the query limit
+	  via the <option>max-recursion-queries</option> option.
+	</para>
+	<para>
+	  The flaw was discovered by Florian Maury of ANSSI, and is
+	  disclosed in CVE-2014-8500. [RT #37580]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Two separate problems were identified in BIND's GeoIP code that
+	  could lead to an assertion failure. One was triggered by use of
+	  both IPv4 and IPv6 address families, the other by referencing
+	  a GeoIP database in <filename>named.conf</filename> which was
+	  not installed. Both are covered by CVE-2014-8680. [RT #37672]
+	  [RT #37679]
+	</para>
+	<para>
+	  A less serious security flaw was also found in GeoIP: changes
+	  to the <command>geoip-directory</command> option in
+	  <filename>named.conf</filename> were ignored when running
+	  <command>rndc reconfig</command>. In theory, this could allow
+	  <command>named</command> to allow access to unintended clients.
+	</para>
+      </listitem>
+    </itemizedlist>
+  </sect2>
+  <sect2 id="relnotes_features">
+    <title>New Features</title>
+    <itemizedlist>
+      <listitem>
+	<para>
+	  New quotas have been added to limit the queries that are
+	  sent by recursive resolvers to authoritative servers
+	  experiencing denial-of-service attacks. When configured,
+	  these options can both reduce the harm done to authoritative
+	  servers and also avoid the resource exhaustion that can be
+	  experienced by recursives when they are being used as a
+	  vehicle for such an attack.
+	</para>
+	<itemizedlist>
+          <listitem>
+	    <para>
+	      <option>fetches-per-server</option> limits the number of
+	      simultaneous queries that can be sent to any single
+	      authoritative server.  The configured value is a starting
+	      point; it is automatically adjusted downward if the server is
+	      partially or completely non-responsive. The algorithm used to
+	      adjust the quota can be configured via the
+	      <option>fetch-quota-params</option> option.
+	    </para>
+	  </listitem>
+          <listitem>
+	    <para>
+	      <option>fetches-per-zone</option> limits the number of
+	      simultaneous queries that can be sent for names within a
+	      single domain.  (Note: Unlike "fetches-per-server", this
+	      value is not self-tuning.)
+	    </para>
+	  </listitem>
+	</itemizedlist>
+	<para>
+	  Statistics counters have also been added to track the number
+	  of queries affected by these quotas.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  New statistics counters have been added to track traffic
+	  sizes, as specified in RSSAC002.  Query and response
+	  message sizes are broken up into ranges of histogram buckets:
+	  TCP and UDP queries of size 0-15, 16-31, ..., 272-288, and 288+,
+	  and TCP and UDP responses of size 0-15, 16-31, ..., 4080-4095,
+	  and 4096+.  These values can be accessed via the XML and JSON
+	  statistics channels at, for example,
+	  <ulink url="http://localhost:8888/xml/v3/traffic"
+		  >http://localhost:8888/xml/v3/traffic</ulink>
+	  or
+	  <ulink url="http://localhost:8888/json/v1/traffic"
+	          >http://localhost:8888/json/v1/traffic</ulink>.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  The serial number of a dynamically updatable zone can
+	  now be set using
+	  <command>rndc signing -serial <replaceable>number</replaceable> <replaceable>zonename</replaceable></command>.
+	  This is particularly useful with <option>inline-signing</option>
+	  zones that have been reset.  Setting the serial number to a value
+	  larger than that on the slaves will trigger an AXFR-style
+	  transfer.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  When answering recursive queries, SERVFAIL responses can now be
+	  cached by the server for a limited time; subsequent queries for
+	  the same query name and type will return another SERVFAIL until
+	  the cache times out.  This reduces the frequency of retries
+	  when a query is persistently failing, which can be a burden
+	  on recursive serviers.  The SERVFAIL cache timeout is controlled
+	  by <option>servfail-ttl</option>, which defaults to 10 seconds
+	  and has an upper limit of 30.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  The new <command>rndc nta</command> command can now be used to
+	  set a "negative trust anchor" (NTA), disabling DNSSEC validation for
+	  a specific domain; this can be used when responses from a domain
+	  are known to be failing validation due to administrative error
+	  rather than because of a spoofing attack. NTAs are strictly
+	  temporary; by default they expire after one hour, but can be
+	  configured to last up to one week.  The default NTA lifetime
+	  can be changed by setting the <option>nta-lifetime</option> in
+	  <filename>named.conf</filename>. When added, NTAs are stored in a
+	  file (<filename><replaceable>viewname</replaceable>.nta</filename>)
+	  in order to persist across restarts of the <command>named</command> server.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  The EDNS Client Subnet (ECS) option is now supported for
+	  authoritative servers; if a query contains an ECS option then
+	  ACLs containing <option>geoip</option> or <option>ecs</option>
+	  elements can match against the the address encoded in the option.
+	  This can be used to select a view for a query, so that different
+	  answers can be provided depending on the client network.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  The EDNS EXPIRE option has been implemented on the client
+	  side, allowing a slave server to set the expiration timer
+	  correctly when transferring zone data from another slave
+	  server.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  A new <option>masterfile-style</option> zone option controls
+	  the formatting of text zone files:  When set to
+	  <literal>full</literal>, the zone file will dumped in
+	  single-line-per-record format.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  <command>dig +ednsopt</command> can now be used to set
+	  arbitrary EDNS options in DNS requests.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  <command>dig +ednsflags</command> can now be used to set
+	  yet-to-be-defined EDNS flags in DNS requests.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  <command>dig +[no]ednsnegotiation</command> can now be used enable /
+	  disable EDNS version negotiation.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  <command>dig +header-only</command> can now be used to send
+	  queries without a question section.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  <command>dig +ttlunits</command> causes <command>dig</command>
+	  to print TTL values with time-unit suffixes: w, d, h, m, s for
+	  weeks, days, hours, minutes, and seconds.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  <command>dig +zflag</command> can be used to set the last
+	  unassigned DNS header flag bit.  This bit in normally zero.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  <command>dig +dscp=<replaceable>value</replaceable></command>
+	  can now be used to set the DSCP code point in outgoing query
+	  packets.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  <option>serial-update-method</option> can now be set to
+	  <literal>date</literal>. On update, the serial number will
+	  be set to the current date in YYYYMMDDNN format.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  <command>dnssec-signzone -N date</command> also sets the serial
+	  number to YYYYMMDDNN.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  <command>named -L <replaceable>filename</replaceable></command>
+	  causes <command>named</command> to send log messages to the specified file by
+	  default instead of to the system log.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  The rate limiter configured by the
+	  <option>serial-query-rate</option> option no longer covers
+	  NOTIFY messages; those are now separately controlled by
+	  <option>notify-rate</option> and
+	  <option>startup-notify-rate</option> (the latter of which
+	  controls the rate of NOTIFY messages sent when the server
+	  is first started up or reconfigured).
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  The default number of tasks and client objects available
+	  for serving lightweight resolver queries have been increased,
+	  and are now configurable via the new <option>lwres-tasks</option>
+	  and <option>lwres-clients</option> options in
+	  <filename>named.conf</filename>. [RT #35857]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Log output to files can now be buffered by specifying
+	  <command>buffered yes;</command> when creating a channel.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  <command>delv +tcp</command> will exclusively use TCP when
+	  sending queries.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  <command>named</command> will now check to see whether
+	  other name server processes are running before starting up.
+	  This is implemented in two ways: 1) by refusing to start
+	  if the configured network interfaces all return "address
+	  in use", and 2) by attempting to acquire a lock on a file
+	  specified by the <option>lock-file</option> option or
+	  the <command>-X</command> command line option.  The
+	  default lock file is
+	  <filename>/var/run/named/named.lock</filename>.
+	  Specifying <literal>none</literal> will disable the lock
+	  file check.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  <command>rndc delzone</command> can now be applied to zones
+	  which were configured in <filename>named.conf</filename>;
+	  it is no longer restricted to zones which were added by
+	  <command>rndc addzone</command>.  (Note, however, that
+	  this does not edit <filename>named.conf</filename>; the zone
+	  must be removed from the configuration or it will return
+	  when <command>named</command> is restarted or reloaded.)
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  <command>rndc modzone</command> can be used to reconfigure
+	  a zone, using similar syntax to <command>rndc addzone</command>. 
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  <command>rndc showzone</command> displays the current
+	  configuration for a specified zone.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Added server-side support for pipelined TCP queries.  Clients
+	  may continue sending queries via TCP while previous queries are
+	  processed in parallel.  Responses are sent when they are
+	  ready, not necessarily in the order in which the queries were
+	  received.
+	</para>
+	<para>
+	  To revert to the former behavior for a particular
+	  client address or range of addresses, specify the address prefix
+	  in the "keep-response-order" option.  To revert to the former
+	  behavior for all clients, use "keep-response-order { any; };".
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  The new <command>mdig</command> command is a version of
+	  <command>dig</command> that sends multiple pipelined
+	  queries and then waits for responses, instead of sending one
+	  query and waiting the response before sending the next. [RT #38261]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  To enable better monitoring and troubleshooting of RFC 5011
+	  trust anchor management, the new <command>rndc managed-keys</command>
+	  can be used to check status of trust anchors or to force keys
+	  to be refreshed.  Also, the managed-keys data file now has
+	  easier-to-read comments. [RT #38458]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  An <command>--enable-querytrace</command> configure switch is
+	  now available to enable very verbose query tracelogging. This
+	  option can only be set at compile time. This option has a
+	  negative performance impact and should be used only for
+	  debugging. [RT #37520]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  A new <command>tcp-only</command> option can be specified
+	  in <command>server</command> statements to force
+	  <command>named</command> to connect to the specified
+	  server via TCP. [RT #37800]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  The <command>nxdomain-redirect</command> option specifies
+	  a DNS namespace to use for NXDOMAIN redirection. When a 
+	  recursive lookup returns NXDOMAIN, a second lookup is
+	  initiated with the specified name appended to the query
+	  name. This allows NXDOMAIN redirection data to be supplied
+	  by multiple zones configured on the server or by recursive
+	  queries to other servers. (The older method, using
+	  a single <command>type redirect</command> zone, has
+	  better average performance but is less flexible.) [RT #37989]
+	</para>
+      </listitem>
+    </itemizedlist>
+  </sect2>
+  <sect2 id="relnotes_changes">
+    <title>Feature Changes</title>
+    <itemizedlist>
+      <listitem>
+	<para>
+	  ACLs containing <command>geoip asnum</command> elements were
+	  not correctly matched unless the full organization name was
+	  specified in the ACL (as in
+	  <command>geoip asnum "AS1234 Example, Inc.";</command>).
+	  They can now match against the AS number alone (as in
+	  <command>geoip asnum "AS1234";</command>).
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  When using native PKCS#11 cryptography (i.e.,
+	  <command>configure --enable-native-pkcs11</command>) HSM PINs
+	  of up to 256 characters can now be used.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  NXDOMAIN responses to queries of type DS are now cached separately
+	  from those for other types. This helps when using "grafted" zones
+	  of type forward, for which the parent zone does not contain a
+	  delegation, such as local top-level domains.  Previously a query
+	  of type DS for such a zone could cause the zone apex to be cached
+	  as NXDOMAIN, blocking all subsequent queries.  (Note: This
+	  change is only helpful when DNSSEC validation is not enabled.
+	  "Grafted" zones without a delegation in the parent are not a
+	  recommended configuration.)
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Update forwarding performance has been improved by allowing
+	  a single TCP connection to be shared between multiple updates.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  By default, <command>nsupdate</command> will now check
+	  the correctness of hostnames when adding records of type
+	  A, AAAA, MX, SOA, NS, SRV or PTR.  This behavior can be
+	  disabled with <command>check-names no</command>.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Added support for OPENPGPKEY type.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  The names of the files used to store managed keys and added
+	  zones for each view are no longer based on the SHA256 hash
+	  of the view name, except when this is necessary because the
+	  view name contains characters that would be incompatible with use
+	  as a file name.  For views whose names do not contain forward
+	  slashes ('/'), backslashes ('\'), or capital letters - which
+	  could potentially cause namespace collision problems on
+	  case-insensitive filesystems - files will now be named
+	  after the view (for example, <filename>internal.mkeys</filename>
+	  or <filename>external.nzf</filename>).  However, to ensure
+	  consistent behavior when upgrading, if a file using the old
+	  name format is found to exist, it will continue to be used.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  "rndc" can now return text output of arbitrary size to
+	  the caller. (Prior to this, certain commands such as
+	  "rndc tsig-list" and "rndc zonestatus" could return
+	  truncated output.)
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Errors reported when running <command>rndc addzone</command>
+	  (e.g., when a zone file cannot be loaded) have been clarified
+	  to make it easier to diagnose problems.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  When encountering an authoritative name server whose name is
+	  an alias pointing to another name, the resolver treats
+	  this as an error and skips to the next server. Previously
+	  this happened silently; now the error will be logged to
+	  the newly-created "cname" log category.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  If <command>named</command> is not configured to validate the answer then
+	  allow fallback to plain DNS on timeout even when we know
+	  the server supports EDNS.  This will allow the server to
+	  potentially resolve signed queries when TCP is being
+	  blocked.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Large inline-signing changes should be less disruptive.
+	  Signature generation is now done incrementally; the number
+	  of signatures to be generated in each quantum is controlled
+	  by "sig-signing-signatures <replaceable>number</replaceable>;".
+	  [RT #37927]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  The experimental SIT option (code point 65001) of BIND
+	  9.10.0 through BIND 9.10.2 has be replace the COOKIE
+	  option (code point 10) and is no longer experimental and
+	  is sent by default.
+	</para>
+	<para>
+	  The SIT related named.conf options have been marked as
+	  obsolete and are otherwise ignored.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  When retrying a query via TCP due to the first answer
+	  being truncated, <command>dig</command> will now correctly
+	  send the Server COOKIE returned by the server in the prior
+	  response. [RT #39047]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  A alternative NXDOMAIN redirect method (nxdomain-redirect)
+	  which allows the redirect information to be looked up from
+	  a namespace on the Internet rather than requiring a zone
+	  to be configured on the server is now available.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Retrieving the local port range from net.ipv4.ip_local_port_range
+	  on Linux is now supported.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Within the <option>response-policy</option> option, it is now
+	  possible to configure RPZ rewrite logging on a per-zone basis
+	  using the <option>log</option> clause.
+	</para>
+      </listitem>
+    </itemizedlist>
+  </sect2>
+  <sect2 id="relnotes_bugs">
+    <title>Bug Fixes</title>
+    <itemizedlist>
+      <listitem>
+	<para>
+	  <command>dig</command>, <command>host</command> and
+	  <command>nslookup</command> aborted when encountering
+	  a name which, after appending search list elements,
+	  exceeded 255 bytes. Such names are now skipped, but
+	  processing of other names will continue. [RT #36892]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  The error message generated when
+	  <command>named-checkzone</command> or
+	  <command>named-checkconf -z</command> encounters a
+	  <option>$TTL</option> directive without a value has
+	  been clarified. [RT #37138]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Semicolon characters (;) included in TXT records were
+	  incorrectly escaped with a backslash when the record was
+	  displayed as text. This is actually only necessary when there
+	  are no quotation marks. [RT #37159]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  When files opened for writing by <command>named</command>,
+	  such as zone journal files, were referenced more than once
+	  in <filename>named.conf</filename>, it could lead to file
+	  corruption as multiple threads wrote to the same file. This
+	  is now detected when loading <filename>named.conf</filename>
+	  and reported as an error. [RT #37172]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  When checking for updates to trust anchors listed in
+	  <option>managed-keys</option>, <command>named</command>
+	  now revalidates keys based on the current set of
+	  active trust anchors, without relying on any cached
+	  record of previous validation. [RT #37506]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Large-system tuning
+	  (<command>configure --with-tuning=large</command>) caused
+	  problems on some platforms by setting a socket receive
+	  buffer size that was too large.  This is now detected and
+	  corrected at run time. [RT #37187]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  When NXDOMAIN redirection is in use, queries for a name
+	  that is present in the redirection zone but a type that
+	  is not present will now return NOERROR instead of NXDOMAIN.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Due to an inadvertent removal of code in the previous
+	  release, when <command>named</command> encountered an
+	  authoritative name server which dropped all EDNS queries,
+	  it did not always try plain DNS. This has been corrected.
+	  [RT #37965]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  A regression caused nsupdate to use the default recursive servers
+	  rather than the SOA MNAME server when sending the UPDATE.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Adjusted max-recursion-queries to accommodate the smaller
+	  initial packet sizes used in BIND 9.10 and higher when
+	  contacting authoritative servers for the first time.
+	</para>
+      </listitem>
+      <listitem>
+        <para>
+	  Built-in "empty" zones did not correctly inherit the
+	  "allow-transfer" ACL from the options or view. [RT #38310]
+        </para>
+      </listitem>
+      <listitem>
+	<para>
+	  Two leaks were fixed that could cause <command>named</command>
+	  processes to grow to very large sizes. [RT #38454]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Fixed some bugs in RFC 5011 trust anchor management,
+	  including a memory leak and a possible loss of state
+	  information. [RT #38458]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Asynchronous zone loads were not handled correctly when the
+	  zone load was already in progress; this could trigger a crash
+	  in zt.c. [RT #37573]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  A race during shutdown or reconfiguration could
+	  cause an assertion failure in mem.c. [RT #38979]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Some answer formatting options didn't work correctly with
+	  <command>dig +short</command>. [RT #39291]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Several bugs have been fixed in the RPZ implementation:
+	</para>
+	<itemizedlist>
+          <listitem>
+	    <para>
+	      Policy zones that did not specifically require recursion
+	      could be treated as if they did; consequently, setting
+	      <command>qname-wait-recurse no;</command> was
+	      sometimes ineffective.  This has been corrected.
+	      In most configurations, behavioral changes due to this
+	      fix will not be noticeable. [RT #39229]
+	    </para>
+	  </listitem>
+	  <listitem>
+	    <para>
+	      The server could crash if policy zones were updated (e.g.
+	      via <command>rndc reload</command> or an incoming zone
+	      transfer) while RPZ processing was still ongoing for an
+	      active query. [RT #39415]
+	    </para>
+	  </listitem>
+	  <listitem>
+	    <para>
+	      On servers with one or more policy zones configured as
+	      slaves, if a policy zone updated during regular operation
+	      (rather than at startup) using a full zone reload, such as
+	      via AXFR, a bug could allow the RPZ summary data to fall out
+	      of sync, potentially leading to an assertion failure in
+	      rpz.c when further incremental updates were made to the
+	      zone, such as via IXFR. [RT #39567]
+	    </para>
+	  </listitem>
+	  <listitem>
+	    <para>
+	      The server could match a shorter prefix than what was
+	      available in CLIENT-IP policy triggers, and so, an
+	      unexpected action could be taken. This has been
+	      corrected. [RT #39481]
+	    </para>
+	  </listitem>
+	  <listitem>
+	    <para>
+	      The server could crash if a reload of an RPZ zone was
+	      initiated while another reload of the same zone was
+	      already in progress. [RT #39649]
+	    </para>
+	  </listitem>
+	</itemizedlist>
+      </listitem>
+    </itemizedlist>
+  </sect2>
+  <sect2 id="end_of_life">
+    <title>End of Life</title>
+    <para>
+      The end of life for BIND 9.11 is yet to be determined but
+      will not be before BIND 9.13.0 has been released for 6 months.
+      <ulink url="https://www.isc.org/downloads/software-support-policy/"
+	>https://www.isc.org/downloads/software-support-policy/</ulink>
+    </para>
+  </sect2>
+  <sect2 id="relnotes_thanks">
+    <title>Thank You</title>
+    <para>
+      Thank you to everyone who assisted us in making this release possible.
+      If you would like to contribute to ISC to assist us in continuing to
+      make quality open source software, please visit our donations page at
+      <ulink url="http://www.isc.org/donate/"
+	>http://www.isc.org/donate/</ulink>.
+    </para>
+  </sect2>
+</sect1>
