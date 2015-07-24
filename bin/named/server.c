@@ -5911,6 +5911,12 @@ load_configuration(const char *filename, ns_server_t *server,
 	INSIST(result == ISC_R_SUCCESS);
 	dns_zonemgr_setserialqueryrate(server->zonemgr, cfg_obj_asuint32(obj));
 
+	obj = NULL;
+	result = ns_config_get(maps, "serial-query-timeout", &obj);
+	INSIST(result == ISC_R_SUCCESS);
+	dns_zonemgr_setserialquerytimeout(server->zonemgr, cfg_obj_asuint32(obj));
+
+
 	/*
 	 * Determine which port to use for listening for incoming connections.
 	 */

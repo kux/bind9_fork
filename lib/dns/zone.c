@@ -546,6 +546,7 @@ struct dns_zonemgr {
 	unsigned int		startupnotifyrate;
 	unsigned int		serialqueryrate;
 	unsigned int		startupserialqueryrate;
+	isc_uint32_t		serialquerytimeout;
 
 	/* Locked by iolock */
 	isc_uint32_t		iolimit;
@@ -11875,9 +11876,9 @@ soa_query(isc_task_t *task, isc_event_t *event) {
 	}
 
 	zone_iattach(zone, &dummy);
-	timeout = 15;
+	timeout = zone->zmgr->serialquerytimeout;
 	if (DNS_ZONE_FLAG(zone, DNS_ZONEFLG_DIALREFRESH))
-		timeout = 30;
+		timeout = zone->zmgr->serialquerytimeout;
 	result = dns_request_createvia4(zone->view->requestmgr, message,
 					&zone->sourceaddr, &zone->masteraddr,
 					dscp, options, key, timeout * 3,
@@ -15869,6 +15870,20 @@ dns_zonemgr_getttransfersperns(dns_zonemgr_t *zmgr) {
 	REQUIRE(DNS_ZONEMGR_VALID(zmgr));
 
 	return (zmgr->transfersperns);
+}
+
+void
+dns_zonemgr_setserialquerytimeout(dns_zonemgr_t *zmgr, isc_uint32_t value) {
+	REQUIRE(DNS_ZONEMGR_VALID(zmgr));
+
+	zmgr->serialquerytimeout = value;
+}
+
+isc_uint32_t
+dns_zonemgr_getserialquerytimeout(dns_zonemgr_t *zmgr) {
+	REQUIRE(DNS_ZONEMGR_VALID(zmgr));
+
+	return (zmgr->serialquerytimeout);
 }
 
 /*

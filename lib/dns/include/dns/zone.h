@@ -1785,6 +1785,15 @@ dns_zonemgr_setserialqueryrate(dns_zonemgr_t *zmgr, unsigned int value);
  *\li	'zmgr' to be a valid zone manager
  */
 
+void
+dns_zonemgr_setserialquerytimeout(dns_zonemgr_t *zmgr, isc_uint32_t value);
+/*%<
+ *	Set the SOA queries timeout..
+ *
+ * Requires:
+ *\li	'zmgr' to be a valid zone manager
+ */
+
 unsigned int
 dns_zonemgr_getnotifyrate(dns_zonemgr_t *zmgr);
 /*%<
@@ -1807,6 +1816,15 @@ unsigned int
 dns_zonemgr_getserialqueryrate(dns_zonemgr_t *zmgr);
 /*%<
  *	Return the number of SOA queries sent per second.
+ *
+ * Requires:
+ *\li	'zmgr' to be a valid zone manager.
+ */
+
+isc_uint32_t
+dns_zonemgr_getserialquerytimeout(dns_zonemgr_t *zmgr);
+/*%<
+ *	Return the timeout for SOA queries.
  *
  * Requires:
  *\li	'zmgr' to be a valid zone manager.

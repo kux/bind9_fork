@@ -104,6 +104,7 @@ options {\n\
 	rrset-order { order random; };\n\
 #	serial-queries <obsolete>;\n\
 	serial-query-rate 20;\n\
+	serial-query-timeout 15;\n\
 	server-id none;\n\
 	startup-notify-rate 20;\n\
 	statistics-file \"named.stats\";\n\
